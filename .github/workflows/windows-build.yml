@@ -1,0 +1,45 @@
+name: Windows DLT Viewer Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      ANTLR_JAR: antlr-4.13.1-complete.jar
+
+    steps:
+      - name: Checkout dlt-viewer
+        uses: actions/checkout@v3
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install dependencies
+        run: |
+          choco install openjdk cmake ninja git -y
+          curl -LO https://www.antlr.org/download/antlr-4.13.1-complete.jar
+
+      - name: Generate ANTLR sources
+        run: |
+          cd plugin/DLT-Message-Analyzer/dltmessageanalyzerplugin/antlr
+          mkdir generated
+          java -jar ../../../antlr-4.13.1-complete.jar -Dlanguage=Cpp -o generated DltPatternParser.g4
+          java -jar ../../../antlr-4.13.1-complete.jar -Dlanguage=Cpp -o generated DltPatternLexer.g4
+
+      - name: Configure and build with CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dlt-viewer-windows
+          path: build/bin/
